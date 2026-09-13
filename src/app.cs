@@ -44,14 +44,20 @@ namespace CodexToast
 
     public static class Program
     {
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        static extern IntPtr GetConsoleWindow();
         [STAThread]
         public static int Main(string[] argv)
         {
             Args args = Args.Parse(argv);
 
-            // Decide mode: explicit flags first; otherwise GUI when double-clicked
-            // (no args and stdin is an interactive console).
-            if (args.Gui || (argv.Length == 0 && !Console.IsInputRedirected))
+            // Mode detection:
+            //  --gui flag           -> always GUI
+            //  no args + no console -> GUI (double-clicked GUI-subsystem exe; stdin checks are meaningless there)
+            //  no args + tty stdin  -> GUI (console exe run interactively)
+            //  otherwise            -> popup / CLI / apply modes
+            bool noConsole = (GetConsoleWindow() == IntPtr.Zero);
+            if (args.Gui || (argv.Length == 0 && (noConsole || !Console.IsInputRedirected)))
             {
                 Application.EnableVisualStyles();
                 Application.Run(new SettingsForm());
