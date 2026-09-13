@@ -74,6 +74,7 @@ namespace CodexToast
         public static int Run(Args args)
         {
             string hookEvent = null;
+            string transcriptPath = null;
             if (Console.IsInputRedirected)
             {
                 // Some agents never close the hook's stdin pipe; never block on it.
@@ -97,6 +98,8 @@ namespace CodexToast
                 {
                     if (json.Contains("SubagentStop")) hookEvent = "SubagentStop";
                     else if (json.Contains("\"Stop\"")) hookEvent = "Stop";
+                    var m = Regex.Match(json, "\"transcript_path\"\\s*:\\s*\"([^\"]+)\"");
+                    if (m.Success) transcriptPath = m.Groups[1].Value.Replace("\\\\", "\\");
                 }
             }
 
@@ -104,10 +107,10 @@ namespace CodexToast
             string soundId = args.SoundId;
 
             // Per-agent settings override defaults (CLI flags still win).
+            AgentOptions o = null;
             if (!string.IsNullOrEmpty(args.Agent))
             {
                 var cfg = ConfigStore.Load();
-                AgentOptions o;
                 if (!cfg.Agents.TryGetValue(args.Agent, out o) || !o.Enabled)
                 {
                     Dbg.Log("agent=" + args.Agent + " disabled or unknown, skip");
@@ -132,13 +135,25 @@ namespace CodexToast
             string message = args.Message;
             if (title == null)
             {
-                if (hookEvent == "SubagentStop") { title = "Codex \u5b50agent"; message = "\u5b50\u4efb\u52a1\u5df2\u5b8c\u6210"; }
-                else if (hookEvent == "Stop") { title = "Codex"; message = "\u4efb\u52a1\u5df2\u5b8c\u6210"; }
-                else { title = "Codex"; message = "Task finished"; }
-            }
-            if (message == null) message = "Task finished";
+                if (hookEvent == "SubagentStop")
+                {
+                    title = "Codex 子agent";
+                    if (message == null) message = "子任务已完成";
+                }
+                else if (hookEvent == "Stop")
+                {
+                    string taskName = TaskName.FromTranscript(transcriptPath);
+                    title = taskName != null ? taskName : "Codex";
+                    if (message == null)
+                    {
+                        string custom = (o != null && !string.IsNullOrEmpty(o.TextMain)) ? o.TextMain : null;
+                        message = custom != null ? custom : "任务已完成";
+                    }
+                }
+                else { title = "Codex"; if (message == null) message = "Task finished"; }
+            }if (message == null) message = "Task finished";
 
-            Dbg.Log("event=" + hookEvent + " agent=" + args.Agent + " style=" + styleId + " sound=" + soundId + " title=" + title + " message=" + message);
+            Dbg.Log("transcript=" + transcriptPath + " event=" + hookEvent + " agent=" + args.Agent + " style=" + styleId + " sound=" + soundId + " title=" + title + " message=" + message);
 
             SoundEngine.Play(args.NoSound ? "none" : soundId);
             if (!args.NoToast)

@@ -38,6 +38,60 @@ namespace CodexToast
         }
     }
 
+    // ---------------- task name from transcript ----------------
+    public static class TaskName
+    {
+        // Extract the last real user message from a Codex rollout JSONL file.
+        public static string FromTranscript(string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+                string last = null;
+                var ser = new JavaScriptSerializer();
+                // The agent may still hold the transcript file open: read with share flags.
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var sr = new StreamReader(fs))
+                {
+                    string line;
+                    while ((line = sr.ReadLine()) != null)
+                    {
+                    if (line.IndexOf("response_item") < 0) continue;
+                    if (line.IndexOf("\"user\"") < 0) continue;
+                    try
+                    {
+                        var obj = ser.Deserialize<Dictionary<string, object>>(line);
+                        object payloadObj;
+                        if (!obj.TryGetValue("payload", out payloadObj)) continue;
+                        var payload = payloadObj as Dictionary<string, object>;
+                        if (payload == null) continue;
+                        object roleObj;
+                        if (!payload.TryGetValue("role", out roleObj)) continue;
+                        if (!"user".Equals(roleObj as string)) continue;
+                        object contentObj;
+                        if (!payload.TryGetValue("content", out contentObj)) continue;
+                        var content = contentObj as System.Collections.IList;
+                        if (content == null || content.Count == 0) continue;
+                        var c0 = content[0] as Dictionary<string, object>;
+                        if (c0 == null) continue;
+                        object textObj;
+                        if (!c0.TryGetValue("text", out textObj)) continue;
+                        string text = textObj as string;
+                        if (string.IsNullOrEmpty(text)) continue;
+                        if (text.StartsWith("<environment_context>")) continue;
+                        last = text;
+                    }
+                    catch { }
+                    }
+                }
+                if (string.IsNullOrEmpty(last)) return null;
+                last = last.Replace("\r", " ").Replace("\n", " ").Trim();
+                if (last.Length > 20) last = last.Substring(0, 20) + "...";
+                return last;
+            }
+            catch { return null; }
+        }
+    }
     // ---------------- sounds ----------------
     public class SoundDef
     {
@@ -116,6 +170,7 @@ namespace CodexToast
         public bool Enabled = false;          // master switch for this agent
         public string StyleId = "steam";      // main-task toast style
         public string SoundId = "asterisk";   // main-task sound
+        public string TextMain = "任务已完成"; // main-task popup body, max 6 chars
         public bool SubEnabled = false;       // notify on subagent completion
         public string SubStyleId = "steam";
         public string SubSoundId = "none";
@@ -162,6 +217,8 @@ namespace CodexToast
                     o.Enabled    = GetBool(d, "enabled", o.Enabled);
                     o.StyleId    = GetStr(d, "style", o.StyleId);
                     o.SoundId    = GetStr(d, "sound", o.SoundId);
+                    o.TextMain   = GetStr(d, "text", o.TextMain);
+                    if (o.TextMain.Length > 6) o.TextMain = o.TextMain.Substring(0, 6);
                     o.SubEnabled = GetBool(d, "subEnabled", o.SubEnabled);
                     o.SubStyleId = GetStr(d, "subStyle", o.SubStyleId);
                     o.SubSoundId = GetStr(d, "subSound", o.SubSoundId);
@@ -184,6 +241,7 @@ namespace CodexToast
                 d["enabled"] = kv.Value.Enabled;
                 d["style"] = kv.Value.StyleId;
                 d["sound"] = kv.Value.SoundId;
+                d["text"] = kv.Value.TextMain;
                 d["subEnabled"] = kv.Value.SubEnabled;
                 d["subStyle"] = kv.Value.SubStyleId;
                 d["subSound"] = kv.Value.SubSoundId;

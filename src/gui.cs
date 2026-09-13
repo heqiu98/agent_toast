@@ -16,6 +16,7 @@ namespace CodexToast
 
         private CheckBox chkEnabled, chkSubEnabled;
         private ComboBox cmbStyle, cmbSound, cmbSubStyle, cmbSubSound;
+        private TextBox txtMainText;
         private Label lblStatus;
 
         private AppConfig cfg;
@@ -23,7 +24,7 @@ namespace CodexToast
         public SettingsForm()
         {
             this.Text = "codex-toast 设置";
-            this.Size = new Size(520, 500);
+            this.Size = new Size(520, 550);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -54,7 +55,7 @@ namespace CodexToast
             GroupBox gbMain = new GroupBox();
             gbMain.Text = "主任务提示";
             gbMain.Location = new Point(16, 74);
-            gbMain.Size = new Size(472, 120);
+            gbMain.Size = new Size(472, 150);
 
             chkEnabled = new CheckBox();
             chkEnabled.Text = "启用主任务完成提示";
@@ -75,7 +76,7 @@ namespace CodexToast
             // --- subagent group ---
             GroupBox gbSub = new GroupBox();
             gbSub.Text = "子 agent 提示";
-            gbSub.Location = new Point(16, 204);
+            gbSub.Location = new Point(16, 234);
             gbSub.Size = new Size(472, 120);
 
             chkSubEnabled = new CheckBox();
@@ -94,6 +95,19 @@ namespace CodexToast
             btnImport.Click += ImportClicked;
             gbMain.Controls.Add(btnImport);
 
+            Label l5 = new Label();
+            l5.Text = "完成文字：";
+            l5.Location = new Point(14, 118);
+            l5.AutoSize = true;
+
+            txtMainText = new TextBox();
+            txtMainText.Location = new Point(100, 114);
+            txtMainText.Size = new Size(220, 24);
+            txtMainText.MaxLength = 6;
+
+            gbMain.Controls.Add(l5);
+            gbMain.Controls.Add(txtMainText);
+
             Label l3 = new Label(); l3.Text = "弹窗样式："; l3.Location = new Point(14, 62); l3.AutoSize = true;
             Label l4 = new Label(); l4.Text = "提示音：";   l4.Location = new Point(14, 90); l4.AutoSize = true;
 
@@ -104,30 +118,30 @@ namespace CodexToast
             // --- buttons ---
             Button btnOk = new Button();
             btnOk.Text = "确定";
-            btnOk.Location = new Point(16, 340);
+            btnOk.Location = new Point(16, 370);
             btnOk.Size = new Size(110, 32);
             btnOk.Click += (s, e) => { SaveUiToOptions(currentAgent); ConfigStore.Save(cfg); SetStatus("设置已保存（未写入 agent 配置）"); };
 
             Button btnApply = new Button();
             btnApply.Text = "应用";
-            btnApply.Location = new Point(138, 340);
+            btnApply.Location = new Point(138, 370);
             btnApply.Size = new Size(110, 32);
             btnApply.Click += ApplyClicked;
 
             Button btnTest = new Button();
             btnTest.Text = "测试";
-            btnTest.Location = new Point(260, 340);
+            btnTest.Location = new Point(260, 370);
             btnTest.Size = new Size(110, 32);
             btnTest.Click += TestClicked;
 
             Button btnCancel = new Button();
             btnCancel.Text = "取消提示";
-            btnCancel.Location = new Point(382, 340);
+            btnCancel.Location = new Point(382, 370);
             btnCancel.Size = new Size(106, 32);
             btnCancel.Click += CancelClicked;
 
             lblStatus = new Label();
-            lblStatus.Location = new Point(16, 384);
+            lblStatus.Location = new Point(16, 422);
             lblStatus.Size = new Size(472, 60);
             lblStatus.ForeColor = Color.FromArgb(90, 90, 90);
             lblStatus.Text = "提示：应用 = 保存偏好并自动写入该 agent 的配置文件";
@@ -209,6 +223,7 @@ namespace CodexToast
             chkSubEnabled.Checked = o.SubEnabled;
             SelectById(cmbStyle, o.StyleId);
             FillSoundCombo(cmbSound, o.SoundId);
+            txtMainText.Text = o.TextMain;
             SelectById(cmbSubStyle, o.SubStyleId);
             FillSoundCombo(cmbSubSound, o.SubSoundId);
             UpdateEnabledState();
@@ -221,6 +236,7 @@ namespace CodexToast
             o.SubEnabled = chkSubEnabled.Checked;
             o.StyleId = (cmbStyle.SelectedItem as StyleDef).Id;
             o.SoundId = (cmbSound.SelectedItem as SoundDef).Id;
+            o.TextMain = txtMainText.Text.Trim();
             o.SubStyleId = (cmbSubStyle.SelectedItem as StyleDef).Id;
             o.SubSoundId = (cmbSubSound.SelectedItem as SoundDef).Id;
         }
