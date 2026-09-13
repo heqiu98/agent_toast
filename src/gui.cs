@@ -63,7 +63,7 @@ namespace CodexToast
             chkEnabled.CheckedChanged += (s, e) => UpdateEnabledState();
 
             cmbStyle = MakeCombo(StyleDef.All, new Point(100, 58));
-            cmbSound = MakeCombo(SoundDef.All, new Point(100, 86));
+            cmbSound = MakeCombo(null, new Point(100, 86));
 
             Label l1 = new Label(); l1.Text = "弹窗样式："; l1.Location = new Point(14, 62); l1.AutoSize = true;
             Label l2 = new Label(); l2.Text = "提示音：";   l2.Location = new Point(14, 90); l2.AutoSize = true;
@@ -85,7 +85,14 @@ namespace CodexToast
             chkSubEnabled.CheckedChanged += (s, e) => UpdateEnabledState();
 
             cmbSubStyle = MakeCombo(StyleDef.All, new Point(100, 58));
-            cmbSubSound = MakeCombo(SoundDef.All, new Point(100, 86));
+            cmbSubSound = MakeCombo(null, new Point(100, 86));
+
+            Button btnImport = new Button();
+            btnImport.Text = "\u5bfc\u5165...";
+            btnImport.Location = new Point(330, 82);
+            btnImport.Size = new Size(72, 26);
+            btnImport.Click += ImportClicked;
+            gbMain.Controls.Add(btnImport);
 
             Label l3 = new Label(); l3.Text = "弹窗样式："; l3.Location = new Point(14, 62); l3.AutoSize = true;
             Label l4 = new Label(); l4.Text = "提示音：";   l4.Location = new Point(14, 90); l4.AutoSize = true;
@@ -143,10 +150,46 @@ namespace CodexToast
             cmb.DropDownStyle = ComboBoxStyle.DropDownList;
             cmb.Location = loc;
             cmb.Size = new Size(220, 24);
-            foreach (var it in items) cmb.Items.Add(it);
+            if (items != null) foreach (var it in items) cmb.Items.Add(it);
             cmb.DisplayMember = "Name";
             cmb.ValueMember = "Id";
             return cmb;
+        }
+
+        private void FillSoundCombo(ComboBox cmb, string selectedId)
+        {
+            cmb.Items.Clear();
+            foreach (var s in SoundDef.All) cmb.Items.Add(s);
+            foreach (var s in CustomSounds.List()) cmb.Items.Add(s);
+            SelectById(cmb, selectedId);
+        }
+
+        private void ImportClicked(object sender, EventArgs e)
+        {
+            var dlg = new OpenFileDialog();
+            dlg.Filter = "WAV \u97f3\u9891 (*.wav)|*.wav";
+            dlg.Title = "\u9009\u62e9\u63d0\u793a\u97f3\u6587\u4ef6";
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            try
+            {
+                string dir = CustomSounds.Dir();
+                string name = Path.GetFileName(dlg.FileName);
+                string dest = Path.Combine(dir, name);
+                int n = 1;
+                while (File.Exists(dest))
+                {
+                    dest = Path.Combine(dir,
+                        Path.GetFileNameWithoutExtension(name) + "_" + n + Path.GetExtension(name));
+                    n++;
+                }
+                File.Copy(dlg.FileName, dest);
+                SaveUiToOptions(currentAgent);
+                string newId = "custom:" + Path.GetFileName(dest);
+                FillSoundCombo(cmbSound, newId);
+                FillSoundCombo(cmbSubSound, cfg.For(currentAgent).SubSoundId);
+                SetStatus("\u5df2\u5bfc\u5165\uff1a" + Path.GetFileName(dest) + "\n\n\u81ea\u5b9a\u4e49\u6587\u4ef6\u4f4d\u4e8e\uff1a" + dir);
+            }
+            catch (Exception ex) { SetStatus("\u5bfc\u5165\u5931\u8d25\uff1a" + ex.Message); }
         }
 
         private void AgentChanged(object sender, EventArgs e)
@@ -165,9 +208,9 @@ namespace CodexToast
             chkEnabled.Checked = o.Enabled;
             chkSubEnabled.Checked = o.SubEnabled;
             SelectById(cmbStyle, o.StyleId);
-            SelectById(cmbSound, o.SoundId);
+            FillSoundCombo(cmbSound, o.SoundId);
             SelectById(cmbSubStyle, o.SubStyleId);
-            SelectById(cmbSubSound, o.SubSoundId);
+            FillSoundCombo(cmbSubSound, o.SubSoundId);
             UpdateEnabledState();
         }
 

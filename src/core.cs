@@ -57,6 +57,31 @@ namespace CodexToast
         }
     }
 
+    // Custom user-imported sounds, stored as .wav files in "sounds/" next to the exe.
+    public static class CustomSounds
+    {
+        public static string Dir()
+        {
+            string d = Path.Combine(ConfigStore.Dir(), "sounds");
+            try { Directory.CreateDirectory(d); } catch { }
+            return d;
+        }
+
+        public static List<SoundDef> List()
+        {
+            var list = new List<SoundDef>();
+            try
+            {
+                foreach (var f in Directory.GetFiles(Dir(), "*.wav"))
+                {
+                    list.Add(new SoundDef { Id = "custom:" + Path.GetFileName(f), Name = Path.GetFileName(f) + " (自定义)" });
+                }
+            }
+            catch { }
+            return list;
+        }
+    }
+
     public static class SoundEngine
     {
         public static void Play(string id)
@@ -64,6 +89,16 @@ namespace CodexToast
             if (string.IsNullOrEmpty(id) || id == "none") return;
             try
             {
+                if (id.StartsWith("custom:"))
+                {
+                    string path = Path.Combine(CustomSounds.Dir(), id.Substring(7));
+                    if (File.Exists(path))
+                    {
+                        var player = new SoundPlayer(path);
+                        player.Play();
+                    }
+                    return;
+                }
                 if (id == "asterisk") SystemSounds.Asterisk.Play();
                 else if (id == "exclamation") SystemSounds.Exclamation.Play();
                 else if (id == "beep") System.Threading.Tasks.Task.Run(() =>

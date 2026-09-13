@@ -80,3 +80,10 @@ command = "F:/path/to/codex-toast.exe --agent codex"
 
 源码在 `src/`（core.cs 样式/音效/弹窗/配置，app.cs 模式分发与 agent 配置写入，gui.cs 设置界面），
 输出到 `release/codex-toast.exe`。构建脚本会把公共 using 合并、兼容旧版 C# 编译器。
+## 自定义提示音
+
+- 设置界面"主任务提示"组的 **导入...** 按钮可选择 `.wav` 文件，自动复制到 exe 旁 `sounds/` 目录
+- 导入后，主/子 agent 的音效下拉框会列出所有自定义文件（标注"自定义"）
+- 也可以手动把 `.wav` 文件丢进 `sounds/` 目录，同样会被自动识别
+- 重复文件名自动加 `_1`、`_2` 后缀避免覆盖
+- 自定义音效在设置文件中记为 `custom:文件名.wav`，内置音效为 `asterisk` / `beep` / `exclamation` / `none`
