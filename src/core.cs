@@ -1,4 +1,4 @@
-﻿// codex-toast core: toast window, style/sound engines, per-agent settings storage.
+﻿// agent_toast core: toast window, style/sound engines, per-agent settings storage.
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -195,7 +195,7 @@ namespace CodexToast
             try { return Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location); }
             catch { return "."; }
         }
-        public static string Path_() { return Path.Combine(Dir(), "codex-toast.settings.json"); }
+        public static string Path_() { return Path.Combine(Dir(), "agent_toast.settings.json"); }
 
         public static AppConfig Load()
         {
@@ -273,7 +273,7 @@ namespace CodexToast
     {
         public static void Log(string line)
         {
-            string p = Environment.GetEnvironmentVariable("CODEX_TOAST_LOG");
+            string p = Environment.GetEnvironmentVariable("AGENT_TOAST_LOG");
             if (string.IsNullOrEmpty(p)) return;
             try { File.AppendAllText(p, DateTime.Now.ToString("o") + " " + line + "\n"); }
             catch { }
@@ -297,11 +297,11 @@ namespace CodexToast
             try
             {
                 int popups = 0;
-                foreach (var p in System.Diagnostics.Process.GetProcessesByName("codex-toast"))
+                foreach (var p in System.Diagnostics.Process.GetProcessesByName("agent_toast"))
                 {
                     string t = "";
                     try { t = p.MainWindowTitle; } catch { }
-                    if (t.IndexOf("codex-toast", StringComparison.OrdinalIgnoreCase) >= 0) continue; // settings GUI
+                    if (t.IndexOf("agent_toast", StringComparison.OrdinalIgnoreCase) >= 0) continue; // settings GUI
                     popups++;
                 }
                 popups--; // exclude self

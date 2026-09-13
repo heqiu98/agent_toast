@@ -1,4 +1,4 @@
-﻿# codex-toast
+﻿# agent_toast
 
 给编程 agent（Codex / Claude Code / OpenCode）用的轻量通知工具。
 Steam 风格弹窗 + 提示音 + 图形化设置界面。agent 配置里只需一行钩子命令，其余都在本工具内管理。
@@ -22,27 +22,27 @@ Steam 风格弹窗 + 提示音 + 图形化设置界面。agent 配置里只需�
 - **测试**：立即用当前选择弹一条测试通知
 - **取消提示**：关闭该 agent 的提示并移除已写入的钩子配置
 
-偏好保存在 exe 同目录的 `codex-toast.settings.json`。
+偏好保存在 exe 同目录的 `agent_toast.settings.json`。
 
 ## 命令行用法
 
 ```powershell
 # 通用弹通知
-codex-toast.exe "标题" "内容" 2000
+agent_toast.exe "标题" "内容" 2000
 
 # 指定样式/音效（可用值见下）
-codex-toast.exe "标题" "内容" --style light --sound beep
+agent_toast.exe "标题" "内容" --style light --sound beep
 
 # 仅响铃 / 仅弹窗
-codex-toast.exe --no-toast
-codex-toast.exe "标题" "内容" --no-sound
+agent_toast.exe --no-toast
+agent_toast.exe "标题" "内容" --no-sound
 
 # 无界面地应用/移除某个 agent 的配置（等价于设置界面的 应用 / 取消提示）
-codex-toast.exe --apply codex
-codex-toast.exe --unapply codex
+agent_toast.exe --apply codex
+agent_toast.exe --unapply codex
 
 # 强制打开设置界面
-codex-toast.exe --gui
+agent_toast.exe --gui
 ```
 
 样式预设：`steam`（深色+蓝条，默认）、`light`（浅色）、`minimal`（极简暗色）。
@@ -53,13 +53,13 @@ codex-toast.exe --gui
 ### Codex（由 应用 按钮自动写入，无需手改）
 
 ```toml
-# >>> codex-toast >>>
+# >>> agent_toast >>>
 [[hooks.Stop]]
 matcher = ""
 [[hooks.Stop.hooks]]
 type = "command"
-command = "F:/path/to/codex-toast.exe --agent codex"
-# <<< codex-toast <<<
+command = "F:/path/to/agent_toast.exe --agent codex"
+# <<< agent_toast <<<
 ```
 
 （实际路径以 应用 写入的为准；子 agent 提示还会有对应的 SubagentStop 区块。）
@@ -70,7 +70,7 @@ command = "F:/path/to/codex-toast.exe --agent codex"
 
 ## 调试
 
-设置环境变量 `CODEX_TOAST_LOG` 为文件路径，每次触发会记录解析出的事件、agent、样式和文案。
+设置环境变量 `AGENT_TOAST_LOG` 为文件路径，每次触发会记录解析出的事件、agent、样式和文案。
 
 ## 构建
 
@@ -79,7 +79,7 @@ command = "F:/path/to/codex-toast.exe --agent codex"
 ```
 
 源码在 `src/`（core.cs 样式/音效/弹窗/配置，app.cs 模式分发与 agent 配置写入，gui.cs 设置界面），
-输出到 `release/codex-toast.exe`。构建脚本会把公共 using 合并、兼容旧版 C# 编译器。
+输出到 `release/agent_toast.exe`。构建脚本会把公共 using 合并、兼容旧版 C# 编译器。
 ## 自定义提示音
 
 - 设置界面"主任务提示"组的 **导入...** 按钮可选择 `.wav` 文件，自动复制到 exe 旁 `sounds/` 目录

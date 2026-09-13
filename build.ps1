@@ -1,8 +1,8 @@
-# Build codex-toast.exe from src/*.cs. Requires Windows PowerShell (Add-Type / CodeDOM).
+﻿# Build agent_toast.exe from src/*.cs. Requires Windows PowerShell (Add-Type / CodeDOM).
 $ErrorActionPreference = "Stop"
 $srcDir = Join-Path $PSScriptRoot "src"
 $outDir = Join-Path $PSScriptRoot "release"
-$out = Join-Path $outDir "codex-toast.exe"
+$out = Join-Path $outDir "agent_toast.exe"
 New-Item -ItemType Directory -Force $outDir | Out-Null
 
 $usings = @"

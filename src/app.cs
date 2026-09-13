@@ -1,4 +1,4 @@
-﻿// codex-toast app: mode dispatch, notification mode, agent config writers.
+﻿// agent_toast app: mode dispatch, notification mode, agent config writers.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -171,7 +171,7 @@ namespace CodexToast
         public static string ExePath()
         {
             try { return System.Reflection.Assembly.GetExecutingAssembly().Location; }
-            catch { return "codex-toast.exe"; }
+            catch { return "agent_toast.exe"; }
         }
 
         // Path safe to embed in TOML/JSON config files (forward slashes, no escapes needed).
@@ -221,20 +221,20 @@ namespace CodexToast
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 string text = File.Exists(path) ? File.ReadAllText(path) : "";
                 // drop our managed region
-                text = Regex.Replace(text, @"(?s)# >>> codex-toast >>>.*?# <<< codex-toast <<<\r?\n?", "");
+                text = Regex.Replace(text, @"(?s)# >>> (?:codex-toast|agent_toast) >>>.*?# <<< (?:codex-toast|agent_toast) <<<\r?\n?", "");
                 // one-time migration: drop legacy unmarked hook blocks that point at us
                 text = Regex.Replace(text,
-                    @"(?ms)^\[\[hooks\.(Stop|SubagentStop)\]\]\r?\n.*?^\[\[hooks\.\1\.hooks\]\]\r?\ntype = ""command""\r?\ncommand = ""[^""]*(codex-toast|notify-hook)[^""]*""\r?\n",
+                    @"(?ms)^\[\[hooks\.(Stop|SubagentStop)\]\]\r?\n.*?^\[\[hooks\.\1\.hooks\]\]\r?\ntype = ""command""\r?\ncommand = ""[^""]*(agent_toast|codex-toast|notify-hook)[^""]*""\r?\n",
                     "");
                 if (o.Enabled)
                 {
                     string cmd = ConfigSafeExePath() + " --agent codex";
-                    string region = "# >>> codex-toast >>>\n\n[[hooks.Stop]]\nmatcher = \"\"\n\n[[hooks.Stop.hooks]]\ntype = \"command\"\ncommand = \"" + cmd + "\"\n";
+                    string region = "# >>> agent_toast >>>\n\n[[hooks.Stop]]\nmatcher = \"\"\n\n[[hooks.Stop.hooks]]\ntype = \"command\"\ncommand = \"" + cmd + "\"\n";
                     if (o.SubEnabled)
                     {
                         region += "\n[[hooks.SubagentStop]]\nmatcher = \"\"\n\n[[hooks.SubagentStop.hooks]]\ntype = \"command\"\ncommand = \"" + cmd + "\"\n";
                     }
-                    region += "\n# <<< codex-toast <<<\n";
+                    region += "\n# <<< agent_toast <<<\n";
                     text = text.TrimEnd() + "\n\n" + region;
                 }
                 File.WriteAllText(path, text);
@@ -291,7 +291,7 @@ namespace CodexToast
             {
                 var d = entry as Dictionary<string, object>;
                 string s = d == null ? entry.ToString() : new JavaScriptSerializer().Serialize(d);
-                if (s != null && s.IndexOf("codex-toast", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                if (s != null && s.IndexOf("agent_toast", StringComparison.OrdinalIgnoreCase) >= 0) continue;
                 kept.Add(entry);
             }
             list = kept;

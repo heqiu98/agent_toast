@@ -1,4 +1,4 @@
-﻿// codex-toast settings GUI.
+﻿// agent_toast settings GUI.
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -23,7 +23,7 @@ namespace CodexToast
 
         public SettingsForm()
         {
-            this.Text = "codex-toast 设置";
+            this.Text = "agent_toast 设置";
             this.Size = new Size(520, 550);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -277,7 +277,7 @@ namespace CodexToast
             string exe = AgentWriter.ExePath();
             string style = (cmbStyle.SelectedItem as StyleDef).Id;
             string sound = (cmbSound.SelectedItem as SoundDef).Id;
-            string title = currentAgent == "codex" ? "Codex \u6d4b\u8bd5" : "codex-toast \u6d4b\u8bd5";
+            string title = currentAgent == "codex" ? "Codex \u6d4b\u8bd5" : "agent_toast \u6d4b\u8bd5";
             try
             {
                 Process.Start(exe, "\"" + title + "\" \"\u6d4b\u8bd5\u5f39\u7a97\" 2500 --style " + style + " --sound " + sound);
@@ -293,7 +293,7 @@ namespace CodexToast
             ConfigStore.Save(cfg);
             if (currentAgent != "opencode") AgentWriter.Apply(currentAgent);
             MessageBox.Show(this, currentAgent + " \u7684\u63d0\u793a\u5df2\u5173\u95ed\uff0c\u76f8\u5173\u914d\u7f6e\u5df2\u79fb\u9664\u3002",
-                "codex-toast", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                "agent_toast", MessageBoxButtons.OK, MessageBoxIcon.Information);
             this.Close();
         }
 
