@@ -1,72 +1,76 @@
 ﻿# codex-toast
 
-给编程 agent（Codex / Claude Code / OpenCode / Aider ...）用的轻量通知弹窗工具。
-Steam 风格深色小窗，右下角弹出，默认 2 秒自动消失（淡入淡出），自带提示音。
-所有提示逻辑都在 exe 内部，agent 配置里只需一行钩子命令。
+给编程 agent（Codex / Claude Code / OpenCode）用的轻量通知工具。
+Steam 风格弹窗 + 提示音 + 图形化设置界面。agent 配置里只需一行钩子命令，其余都在本工具内管理。
 
-## 功能
+## 两种运行模式
 
-- 弹窗：右下角、置顶、圆角、点击可提前关闭、多个弹窗自动向上堆叠
-- 提示音：Windows 系统提示音（`--no-sound` 关闭）
-- 事件识别：从 stdin 读取 agent hook 的 JSON，自动区分主任务 / 子任务
-- 零依赖单文件 exe，WinForms 实现，无需安装
+| 启动方式 | 行为 |
+|---|---|
+| 双击运行（无参数、无管道） | 打开**设置界面** |
+| 被 agent hook 调用（stdin 管道） | 弹出通知（样式/音效按设置文件执行） |
+| 命令行带参数 | 直接弹通知（通用模式） |
+
+## 设置界面
+
+- 选择 agent：Codex / Claude Code / OpenCode（预留）
+- 每个 agent 独立配置：
+  - 主任务提示：开关、弹窗样式、提示音（可无声）
+  - 子 agent 提示：开关、弹窗样式、提示音（可无声）
+- **确定**：保存偏好（不写入 agent 配置）
+- **应用**：保存偏好 + 自动写入该 agent 的配置文件（Codex 的 config.toml / Claude 的 settings.json）
+- **测试**：立即用当前选择弹一条测试通知
+- **取消提示**：关闭该 agent 的提示并移除已写入的钩子配置
+
+偏好保存在 exe 同目录的 `codex-toast.settings.json`。
 
 ## 命令行用法
 
 ```powershell
-# 通用：标题 + 内容 + 时长(毫秒)
-codex-toast.exe "Codex" "任务已完成" 2000
+# 通用弹通知
+codex-toast.exe "标题" "内容" 2000
 
-# 只响铃不弹窗
+# 指定样式/音效（可用值见下）
+codex-toast.exe "标题" "内容" --style light --sound beep
+
+# 仅响铃 / 仅弹窗
 codex-toast.exe --no-toast
+codex-toast.exe "标题" "内容" --no-sound
 
-# 只弹窗不响铃
-codex-toast.exe "Codex" "任务已完成" --no-sound
+# 无界面地应用/移除某个 agent 的配置（等价于设置界面的 应用 / 取消提示）
+codex-toast.exe --apply codex
+codex-toast.exe --unapply codex
+
+# 强制打开设置界面
+codex-toast.exe --gui
 ```
 
-参数：`[title] [message] [--duration ms] [--no-sound] [--no-toast]`
-不传标题/内容时，默认显示 "Codex / Task finished"。
+样式预设：`steam`（深色+蓝条，默认）、`light`（浅色）、`minimal`（极简暗色）。
+音效：`none`、`asterisk`（系统叮）、`beep`（蜂鸣）、`exclamation`（感叹号）。
 
 ## 作为 agent 钩子使用
 
-### Codex（config.toml）
+### Codex（由 应用 按钮自动写入，无需手改）
 
 ```toml
+# >>> codex-toast >>>
 [[hooks.Stop]]
 matcher = ""
 [[hooks.Stop.hooks]]
 type = "command"
-command = "F:/repositories/new/codex-toast/release/codex-toast.exe"
-
-[[hooks.SubagentStop]]
-matcher = ""
-[[hooks.SubagentStop.hooks]]
-type = "command"
-command = "F:/repositories/new/codex-toast/release/codex-toast.exe"
+command = "F:/path/to/codex-toast.exe --agent codex"
+# <<< codex-toast <<<
 ```
 
-exe 从 stdin 的 JSON 里自动识别事件：`Stop` → "任务已完成"，`SubagentStop` → "子任务已完成"。
-首次配置后 TUI 会弹一次 "Hooks need review"，选 **Trust all and continue** 即可（只问一次）。
+（实际路径以 应用 写入的为准；子 agent 提示还会有对应的 SubagentStop 区块。）
 
-### Claude Code（settings.json）
+### Claude Code
 
-```json
-{
-  "hooks": {
-    "Stop": [{"hooks": [{"type": "command", "command": "F:/repositories/new/codex-toast/release/codex-toast.exe"}]}],
-    "SubagentStop": [{"hooks": [{"type": "command", "command": "F:/repositories/new/codex-toast/release/codex-toast.exe"}]}]
-  }
-}
-```
-
-### 其他
-
-任何支持"事件触发时执行 shell 命令"的工具（Aider 的 `--notification-command`、OpenCode 插件等）
-都可以直接调用这个 exe，带参数或管道 JSON 均可。
+`应用` 按钮自动合并写入 `~/.claude/settings.json` 的 `hooks` 字段（保留已有其他配置）。
 
 ## 调试
 
-设置环境变量 `CODEX_TOAST_LOG` 指向一个文件路径，每次触发会记录解析出的事件和文案。
+设置环境变量 `CODEX_TOAST_LOG` 为文件路径，每次触发会记录解析出的事件、agent、样式和文案。
 
 ## 构建
 
@@ -74,4 +78,5 @@ exe 从 stdin 的 JSON 里自动识别事件：`Stop` → "任务已完成"，`S
 .\build.ps1
 ```
 
-源码在 `src/codex-toast.cs`（单文件 C#），输出到 `release/codex-toast.exe`。
+源码在 `src/`（core.cs 样式/音效/弹窗/配置，app.cs 模式分发与 agent 配置写入，gui.cs 设置界面），
+输出到 `release/codex-toast.exe`。构建脚本会把公共 using 合并、兼容旧版 C# 编译器。
