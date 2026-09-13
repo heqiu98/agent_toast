@@ -70,16 +70,28 @@ namespace CodexToast
             string hookEvent = null;
             if (Console.IsInputRedirected)
             {
-                try
+                // Some agents never close the hook's stdin pipe; never block on it.
+                // Read on a background thread, wait briefly, then proceed with defaults.
+                string json = null;
+                var sync = new object();
+                var reader = new System.Threading.Thread(() =>
                 {
-                    string json = Console.In.ReadToEnd();
-                    if (!string.IsNullOrEmpty(json))
+                    try
                     {
-                        if (json.Contains("SubagentStop")) hookEvent = "SubagentStop";
-                        else if (json.Contains("\"Stop\"")) hookEvent = "Stop";
+                        string s = Console.In.ReadToEnd();
+                        lock (sync) { json = s; }
                     }
+                    catch { }
+                });
+                reader.IsBackground = true;
+                reader.Start();
+                reader.Join(300);
+                lock (sync) { }
+                if (!string.IsNullOrEmpty(json))
+                {
+                    if (json.Contains("SubagentStop")) hookEvent = "SubagentStop";
+                    else if (json.Contains("\"Stop\"")) hookEvent = "Stop";
                 }
-                catch { }
             }
 
             string styleId = args.StyleId;

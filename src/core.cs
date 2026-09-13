@@ -203,8 +203,16 @@ namespace CodexToast
             int stackOffset = 0;
             try
             {
-                int others = System.Diagnostics.Process.GetProcessesByName("codex-toast").Length - 1;
-                if (others > 0) stackOffset = others * (this.Height + 8);
+                int popups = 0;
+                foreach (var p in System.Diagnostics.Process.GetProcessesByName("codex-toast"))
+                {
+                    string t = "";
+                    try { t = p.MainWindowTitle; } catch { }
+                    if (t.IndexOf("codex-toast", StringComparison.OrdinalIgnoreCase) >= 0) continue; // settings GUI
+                    popups++;
+                }
+                popups--; // exclude self
+                if (popups > 0) stackOffset = popups * (this.Height + 8);
             }
             catch { }
 
@@ -271,6 +279,21 @@ namespace CodexToast
             life.Start();
 
             this.Click += (s, e) => this.Close();
+            Dbg.Log("toast shown: " + title);
+        }
+
+        // Never activate / steal keyboard focus (typing in other apps must not be interrupted).
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                const int WS_EX_NOACTIVATE = 0x08000000;
+                const int WS_EX_TOOLWINDOW = 0x00000080;
+                const int WS_EX_TOPMOST    = 0x00000008;
+                CreateParams cp = base.CreateParams;
+                cp.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST;
+                return cp;
+            }
         }
     }
 }
