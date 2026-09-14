@@ -1,4 +1,4 @@
-﻿# Build agent_toast.exe from src/*.cs. Requires Windows PowerShell (Add-Type / CodeDOM).
+# Build agent_toast.exe from src/*.cs. Requires Windows PowerShell (Add-Type / CodeDOM).
 $ErrorActionPreference = "Stop"
 $srcDir = Join-Path $PSScriptRoot "src"
 $outDir = Join-Path $PSScriptRoot "release"
@@ -20,7 +20,7 @@ using System.Windows.Forms;
 "@
 
 $code = $usings + "`n"
-foreach ($f in @("core.cs", "app.cs", "gui.cs")) {
+foreach ($f in @("core.cs", "app.cs", "gui.cs", "tabs.cs")) {
     $text = [System.IO.File]::ReadAllText((Join-Path $srcDir $f))
     # strip per-file using directives; common set is prepended above
     $text = [regex]::Replace($text, '(?m)^\s*using\s+[\w\.]+;\s*\r?\n', '')

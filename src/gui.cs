@@ -4,14 +4,14 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace CodexToast
+namespace AgentToast
 {
     public class SettingsForm : Form
     {
         private static readonly string[] AgentIds = { "codex", "claude", "opencode" };
         private static readonly string[] AgentNames = { "Codex", "Claude Code", "OpenCode (预留)" };
 
-        private RadioButton[] agentRads = new RadioButton[3];
+        private MacTabs tabs;
         private string currentAgent = "codex";
 
         private CheckBox chkEnabled, chkSubEnabled;
@@ -29,28 +29,25 @@ namespace CodexToast
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
+            this.BackColor = Color.FromArgb(245, 245, 247);
 
             cfg = ConfigStore.Load();
 
-            // --- agent selector ---
-            Label lblAgent = new Label();
-            lblAgent.Text = "选择 Agent：";
-            lblAgent.Location = new Point(16, 16);
-            lblAgent.AutoSize = true;
-
-            for (int i = 0; i < 3; i++)
+            // --- agent selector (macOS style tabs) ---
+            tabs = new MacTabs();
+            tabs.Location = new Point(16, 14);
+            tabs.Size = new Size(472, 34);
+            tabs.AddTab("codex", "Codex");
+            tabs.AddTab("claude", "Claude Code");
+            tabs.AddTab("opencode", "OpenCode");
+            tabs.SelectTab(currentAgent);
+            tabs.SelectedIndexChanged += (s, e) =>
             {
-                var rad = new RadioButton();
-                rad.Text = AgentNames[i];
-                rad.Tag = AgentIds[i];
-                rad.Location = new Point(20 + i * 160, 40);
-                rad.AutoSize = true;
-                if (AgentIds[i] == currentAgent) rad.Checked = true;
-                rad.CheckedChanged += AgentChanged;
-                agentRads[i] = rad;
-                this.Controls.Add(rad);
-            }
-
+                SaveUiToOptions(currentAgent);
+                currentAgent = tabs.SelectedId;
+                LoadUiFromOptions(currentAgent);
+            };
+            this.Controls.Add(tabs);
             // --- main task group ---
             GroupBox gbMain = new GroupBox();
             gbMain.Text = "主任务提示";
@@ -146,7 +143,6 @@ namespace CodexToast
             lblStatus.ForeColor = Color.FromArgb(90, 90, 90);
             lblStatus.Text = "提示：应用 = 保存偏好并自动写入该 agent 的配置文件";
 
-            this.Controls.Add(lblAgent);
             this.Controls.Add(gbMain);
             this.Controls.Add(gbSub);
             this.Controls.Add(btnOk);
@@ -204,15 +200,6 @@ namespace CodexToast
                 SetStatus("\u5df2\u5bfc\u5165\uff1a" + Path.GetFileName(dest) + "\n\n\u81ea\u5b9a\u4e49\u6587\u4ef6\u4f4d\u4e8e\uff1a" + dir);
             }
             catch (Exception ex) { SetStatus("\u5bfc\u5165\u5931\u8d25\uff1a" + ex.Message); }
-        }
-
-        private void AgentChanged(object sender, EventArgs e)
-        {
-            var rad = sender as RadioButton;
-            if (rad == null || !rad.Checked) return;
-            SaveUiToOptions(currentAgent);          // persist edits of previous agent
-            currentAgent = rad.Tag.ToString();
-            LoadUiFromOptions(currentAgent);
         }
 
         private void LoadUiFromOptions(string agent)

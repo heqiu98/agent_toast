@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
-namespace CodexToast
+namespace AgentToast
 {
     public class Args
     {

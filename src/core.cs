@@ -9,7 +9,7 @@ using System.Reflection;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
-namespace CodexToast
+namespace AgentToast
 {
     // ---------------- styles ----------------
     public class StyleDef
@@ -23,6 +23,8 @@ namespace CodexToast
         public bool ShowAccent;
         public int Width;
         public int Height;
+
+        public override string ToString() { return Name; }
 
         public static readonly List<StyleDef> All = new List<StyleDef>
         {
@@ -97,6 +99,9 @@ namespace CodexToast
     {
         public string Id;
         public string Name;
+
+        public override string ToString() { return Name; }
+
         public static readonly List<SoundDef> All = new List<SoundDef>
         {
             new SoundDef { Id = "none",        Name = "无" },
