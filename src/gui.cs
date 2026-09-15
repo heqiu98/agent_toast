@@ -20,6 +20,8 @@ namespace AgentToast
         private Label lblStatus;
 
         private AppConfig cfg;
+        private NotifyIcon trayIcon;
+        private bool reallyExit = false;
 
         public SettingsForm()
         {
@@ -28,10 +30,21 @@ namespace AgentToast
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
-            this.MinimizeBox = false;
+            this.MinimizeBox = true;
             this.BackColor = Color.FromArgb(245, 245, 247);
 
             cfg = ConfigStore.Load();
+            // --- tray: minimize -> taskbar, close (X) -> tray, real exit via tray menu ---
+            trayIcon = new NotifyIcon();
+            try { trayIcon.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); }
+            catch { trayIcon.Icon = SystemIcons.Application; }
+            trayIcon.Text = "agent_toast";
+            trayIcon.Visible = true;
+            trayIcon.DoubleClick += (s, e) => ShowFromTray();
+            var trayMenu = new ContextMenuStrip();
+            trayMenu.Items.Add("打开设置", null, (s, e) => ShowFromTray());
+            trayMenu.Items.Add("退出", null, (s, e) => ExitApp());
+            trayIcon.ContextMenuStrip = trayMenu;
 
             // --- agent selector (macOS style tabs) ---
             tabs = new MacTabs();
@@ -281,7 +294,46 @@ namespace AgentToast
             if (currentAgent != "opencode") AgentWriter.Apply(currentAgent);
             MessageBox.Show(this, currentAgent + " \u7684\u63d0\u793a\u5df2\u5173\u95ed\uff0c\u76f8\u5173\u914d\u7f6e\u5df2\u79fb\u9664\u3002",
                 "agent_toast", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            reallyExit = true;
             this.Close();
+        }
+
+        // --- tray behaviors ---
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            if (!reallyExit)
+            {
+                e.Cancel = true;
+                HideToTray();
+                return;
+            }
+            base.OnClosing(e);
+        }
+
+        private void HideToTray()
+        {
+            Hide();
+            trayIcon.ShowBalloonTip(1200, "agent_toast", "已缩小到托盘，双击图标恢复设置界面。", ToolTipIcon.Info);
+        }
+
+        private void ShowFromTray()
+        {
+            Show();
+            WindowState = FormWindowState.Normal;
+            Activate();
+        }
+
+        private void ExitApp()
+        {
+            reallyExit = true;
+            if (trayIcon != null) trayIcon.Visible = false;
+            Close();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && trayIcon != null) { trayIcon.Dispose(); trayIcon = null; }
+            base.Dispose(disposing);
         }
 
         private void SetStatus(string text)
