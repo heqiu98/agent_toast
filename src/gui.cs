@@ -31,6 +31,10 @@ namespace AgentToast
             this.Size = new Size(520, 618);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.None;
+
+            // assign the exe icon explicitly: otherwise the window class gets no
+            // icon and the taskbar shows a generic icon when minimized.
+            try { this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             this.MaximizeBox = false;
             this.MinimizeBox = true;
             this.BackColor = Color.FromArgb(245, 245, 247);
