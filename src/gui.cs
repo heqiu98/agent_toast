@@ -30,7 +30,7 @@ namespace AgentToast
             this.Text = "agent_toast 设置";
             this.Size = new Size(520, 576);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.MinimizeBox = true;
             this.BackColor = Color.FromArgb(245, 245, 247);
@@ -50,8 +50,8 @@ namespace AgentToast
 
             // --- agent selector (macOS style tabs) ---
             tabs = new MacTabs();
-            tabs.Location = new Point(58, 14);
-            tabs.Size = new Size(430, 34);
+            tabs.Location = new Point(16, 14);
+            tabs.Size = new Size(472, 34);
             tabs.AddTab("codex", "Codex");
             tabs.AddTab("claude", "Claude Code");
             tabs.AddTab("opencode", "OpenCode");
@@ -62,13 +62,6 @@ namespace AgentToast
                 currentAgent = tabs.SelectedId;
                 LoadUiFromOptions(currentAgent);
             };
-            // --- page icon (same as exe icon) ---
-            PictureBox pbox = new PictureBox();
-            pbox.Location = new Point(16, 14);
-            pbox.Size = new Size(34, 34);
-            pbox.SizeMode = PictureBoxSizeMode.Zoom;
-            try { pbox.Image = Icon.ExtractAssociatedIcon(Application.ExecutablePath).ToBitmap(); } catch { }
-            this.Controls.Add(pbox);
             this.Controls.Add(tabs);
             // --- main task group ---
             GroupBox gbMain = new GroupBox();
