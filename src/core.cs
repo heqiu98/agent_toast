@@ -179,6 +179,7 @@ namespace AgentToast
         public bool SubEnabled = false;       // notify on subagent completion
         public string SubStyleId = "steam";
         public string SubSoundId = "none";
+        public int DurationMs = 2000;    // toast display duration for this agent
     }
 
     public class AppConfig
@@ -227,6 +228,8 @@ namespace AgentToast
                     o.SubEnabled = GetBool(d, "subEnabled", o.SubEnabled);
                     o.SubStyleId = GetStr(d, "subStyle", o.SubStyleId);
                     o.SubSoundId = GetStr(d, "subSound", o.SubSoundId);
+                    o.DurationMs = GetInt(d, "durationMs", 2000);
+                    if (o.DurationMs < 500 || o.DurationMs > 60000) o.DurationMs = 2000;
                 }
             }
             catch { }
@@ -250,6 +253,7 @@ namespace AgentToast
                 d["subEnabled"] = kv.Value.SubEnabled;
                 d["subStyle"] = kv.Value.SubStyleId;
                 d["subSound"] = kv.Value.SubSoundId;
+                d["durationMs"] = kv.Value.DurationMs;
                 agents[kv.Key] = d;
             }
             File.WriteAllText(Path_(), ser.Serialize(root));
@@ -262,6 +266,15 @@ namespace AgentToast
             {
                 if (v is bool) return (bool)v;
                 bool b; if (bool.TryParse(v.ToString(), out b)) return b;
+            }
+            return def;
+        }
+        private static int GetInt(Dictionary<string, object> d, string k, int def)
+        {
+            object v;
+            if (d.TryGetValue(k, out v))
+            {
+                int n; if (int.TryParse(v.ToString(), out n)) return n;
             }
             return def;
         }

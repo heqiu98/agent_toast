@@ -17,6 +17,7 @@ namespace AgentToast
         private CheckBox chkEnabled, chkSubEnabled;
         private ComboBox cmbStyle, cmbSound, cmbSubStyle, cmbSubSound;
         private TextBox txtMainText;
+        private NumericUpDown numDuration;
         private Label lblStatus;
 
         private AppConfig cfg;
@@ -26,7 +27,7 @@ namespace AgentToast
         public SettingsForm()
         {
             this.Text = "agent_toast 设置";
-            this.Size = new Size(520, 550);
+            this.Size = new Size(520, 576);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -65,7 +66,7 @@ namespace AgentToast
             GroupBox gbMain = new GroupBox();
             gbMain.Text = "主任务提示";
             gbMain.Location = new Point(16, 74);
-            gbMain.Size = new Size(472, 150);
+            gbMain.Size = new Size(472, 176);
 
             chkEnabled = new CheckBox();
             chkEnabled.Text = "启用主任务完成提示";
@@ -86,7 +87,7 @@ namespace AgentToast
             // --- subagent group ---
             GroupBox gbSub = new GroupBox();
             gbSub.Text = "子 agent 提示";
-            gbSub.Location = new Point(16, 234);
+            gbSub.Location = new Point(16, 260);
             gbSub.Size = new Size(472, 120);
 
             chkSubEnabled = new CheckBox();
@@ -117,6 +118,13 @@ namespace AgentToast
 
             gbMain.Controls.Add(l5);
             gbMain.Controls.Add(txtMainText);
+            Label l6 = new Label(); l6.Text = "显示时长："; l6.Location = new Point(14, 146); l6.AutoSize = true;
+            numDuration = new NumericUpDown();
+            numDuration.Location = new Point(100, 142);
+            numDuration.Size = new Size(60, 24);
+            numDuration.Minimum = 1; numDuration.Maximum = 60; numDuration.Value = 2;
+            Label l7 = new Label(); l7.Text = "秒"; l7.Location = new Point(166, 146); l7.AutoSize = true;
+            gbMain.Controls.Add(l6); gbMain.Controls.Add(numDuration); gbMain.Controls.Add(l7);
 
             Label l3 = new Label(); l3.Text = "弹窗样式："; l3.Location = new Point(14, 62); l3.AutoSize = true;
             Label l4 = new Label(); l4.Text = "提示音：";   l4.Location = new Point(14, 90); l4.AutoSize = true;
@@ -128,30 +136,30 @@ namespace AgentToast
             // --- buttons ---
             Button btnOk = new Button();
             btnOk.Text = "确定";
-            btnOk.Location = new Point(16, 370);
+            btnOk.Location = new Point(16, 396);
             btnOk.Size = new Size(110, 32);
             btnOk.Click += (s, e) => { SaveUiToOptions(currentAgent); ConfigStore.Save(cfg); SetStatus("设置已保存（未写入 agent 配置）"); };
 
             Button btnApply = new Button();
             btnApply.Text = "应用";
-            btnApply.Location = new Point(138, 370);
+            btnApply.Location = new Point(138, 396);
             btnApply.Size = new Size(110, 32);
             btnApply.Click += ApplyClicked;
 
             Button btnTest = new Button();
             btnTest.Text = "测试";
-            btnTest.Location = new Point(260, 370);
+            btnTest.Location = new Point(260, 396);
             btnTest.Size = new Size(110, 32);
             btnTest.Click += TestClicked;
 
             Button btnCancel = new Button();
             btnCancel.Text = "取消提示";
-            btnCancel.Location = new Point(382, 370);
+            btnCancel.Location = new Point(382, 396);
             btnCancel.Size = new Size(106, 32);
             btnCancel.Click += CancelClicked;
 
             lblStatus = new Label();
-            lblStatus.Location = new Point(16, 422);
+            lblStatus.Location = new Point(16, 448);
             lblStatus.Size = new Size(472, 60);
             lblStatus.ForeColor = Color.FromArgb(90, 90, 90);
             lblStatus.Text = "提示：应用 = 保存偏好并自动写入该 agent 的配置文件";
@@ -224,6 +232,7 @@ namespace AgentToast
             SelectById(cmbStyle, o.StyleId);
             FillSoundCombo(cmbSound, o.SoundId);
             txtMainText.Text = o.TextMain;
+            numDuration.Value = Math.Max(1, Math.Min(60, o.DurationMs / 1000));
             SelectById(cmbSubStyle, o.SubStyleId);
             FillSoundCombo(cmbSubSound, o.SubSoundId);
             UpdateEnabledState();
@@ -237,6 +246,7 @@ namespace AgentToast
             o.StyleId = (cmbStyle.SelectedItem as StyleDef).Id;
             o.SoundId = (cmbSound.SelectedItem as SoundDef).Id;
             o.TextMain = txtMainText.Text.Trim();
+            o.DurationMs = (int)numDuration.Value * 1000;
             o.SubStyleId = (cmbSubStyle.SelectedItem as StyleDef).Id;
             o.SubSoundId = (cmbSubSound.SelectedItem as SoundDef).Id;
         }
@@ -280,7 +290,7 @@ namespace AgentToast
             string title = currentAgent == "codex" ? "Codex \u6d4b\u8bd5" : "agent_toast \u6d4b\u8bd5";
             try
             {
-                Process.Start(exe, "\"" + title + "\" \"\u6d4b\u8bd5\u5f39\u7a97\" 2500 --style " + style + " --sound " + sound);
+                Process.Start(exe, "\"" + title + "\" \"\u6d4b\u8bd5\u5f39\u7a97\"" + " --duration " + ((int)numDuration.Value * 1000) + " --style " + style + " --sound " + sound);
             }
             catch (Exception ex) { SetStatus("\u6d4b\u8bd5\u5931\u8d25\uff1a" + ex.Message); }
         }

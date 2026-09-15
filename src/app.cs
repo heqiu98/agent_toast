@@ -13,7 +13,7 @@ namespace AgentToast
         public string Agent;        // --agent codex|claude|opencode
         public string StyleId;      // --style
         public string SoundId;      // --sound
-        public int DurationMs = 2000;
+        public int DurationMs = 0;         // 0 = not specified on the command line
         public bool NoSound, NoToast;
         public string Title, Message;
         public bool Gui;            // --gui
@@ -155,11 +155,15 @@ namespace AgentToast
 
             Dbg.Log("transcript=" + transcriptPath + " event=" + hookEvent + " agent=" + args.Agent + " style=" + styleId + " sound=" + soundId + " title=" + title + " message=" + message);
 
+
+            int durationMs = args.DurationMs > 0 ? args.DurationMs
+                         : (o != null && o.DurationMs > 0 ? o.DurationMs : 2000);
+
             SoundEngine.Play(args.NoSound ? "none" : soundId);
             if (!args.NoToast)
             {
                 Application.EnableVisualStyles();
-                Application.Run(new ToastForm(StyleDef.Find(styleId), title, message, args.DurationMs));
+                Application.Run(new ToastForm(StyleDef.Find(styleId), title, message, durationMs));
             }
             return 0;
         }
