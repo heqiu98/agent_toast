@@ -28,9 +28,9 @@ namespace AgentToast
         public SettingsForm()
         {
             this.Text = "agent_toast 设置";
-            this.Size = new Size(520, 576);
+            this.Size = new Size(520, 618);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.FormBorderStyle = FormBorderStyle.None;
             this.MaximizeBox = false;
             this.MinimizeBox = true;
             this.BackColor = Color.FromArgb(245, 245, 247);
@@ -48,9 +48,56 @@ namespace AgentToast
             trayMenu.Items.Add("退出", null, (s, e) => ExitApp());
             trayIcon.ContextMenuStrip = trayMenu;
 
+            // --- custom title bar: taller than native caption, holds icon + min/close ---
+            Panel titleBar = new Panel();
+            titleBar.Location = new Point(0, 0);
+            titleBar.Size = new Size(520, 44);
+            titleBar.BackColor = Color.FromArgb(245, 245, 247);
+            titleBar.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            this.Controls.Add(titleBar);
+
+            Panel barLine = new Panel();
+            barLine.Location = new Point(0, 43);
+            barLine.Size = new Size(520, 1);
+            barLine.BackColor = Color.FromArgb(224, 224, 228);
+            barLine.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            titleBar.Controls.Add(barLine);
+
+            PictureBox tIcon = new PictureBox();
+            tIcon.Location = new Point(10, 8);
+            tIcon.Size = new Size(28, 28);
+            tIcon.SizeMode = PictureBoxSizeMode.Zoom;
+            try { tIcon.Image = Icon.ExtractAssociatedIcon(Application.ExecutablePath).ToBitmap(); } catch { }
+            tIcon.MouseDown += TitleBarMouseDown;
+            tIcon.DoubleClick += (s, e) => { this.WindowState = FormWindowState.Minimized; };
+            titleBar.Controls.Add(tIcon);
+
+            Label tLabel = new Label();
+            tLabel.Text = "agent_toast 设置";
+            tLabel.Location = new Point(46, 0);
+            tLabel.Size = new Size(340, 44);
+            tLabel.TextAlign = ContentAlignment.MiddleLeft;
+            tLabel.Font = new Font("Segoe UI", 10f);
+            tLabel.MouseDown += TitleBarMouseDown;
+            tLabel.DoubleClick += (s, e) => { this.WindowState = FormWindowState.Minimized; };
+            titleBar.Controls.Add(tLabel);
+
+            titleBar.MouseDown += TitleBarMouseDown;
+            titleBar.DoubleClick += (s, e) => { this.WindowState = FormWindowState.Minimized; };
+
+            Button minBtn = MakeTitleButton("–", 404, titleBar);
+            minBtn.Font = new Font("Segoe UI", 14f);
+            minBtn.Click += (s, e) => { this.WindowState = FormWindowState.Minimized; };
+
+            Button closeBtn = MakeTitleButton("×", 444, titleBar);
+            closeBtn.Font = new Font("Segoe UI", 12f);
+            closeBtn.Click += (s, e) => this.Close();
+            closeBtn.MouseEnter += (s, e) => { closeBtn.BackColor = Color.FromArgb(232, 17, 35); closeBtn.ForeColor = Color.White; };
+            closeBtn.MouseLeave += (s, e) => { closeBtn.BackColor = Color.Transparent; closeBtn.ForeColor = Color.FromArgb(60, 60, 64); };
+
             // --- agent selector (macOS style tabs) ---
             tabs = new MacTabs();
-            tabs.Location = new Point(16, 14);
+            tabs.Location = new Point(16, 56);
             tabs.Size = new Size(472, 34);
             tabs.AddTab("codex", "Codex");
             tabs.AddTab("claude", "Claude Code");
@@ -66,7 +113,7 @@ namespace AgentToast
             // --- main task group ---
             GroupBox gbMain = new GroupBox();
             gbMain.Text = "主任务提示";
-            gbMain.Location = new Point(16, 74);
+            gbMain.Location = new Point(16, 116);
             gbMain.Size = new Size(472, 176);
 
             chkEnabled = new CheckBox();
@@ -88,7 +135,7 @@ namespace AgentToast
             // --- subagent group ---
             GroupBox gbSub = new GroupBox();
             gbSub.Text = "子 agent 提示";
-            gbSub.Location = new Point(16, 260);
+            gbSub.Location = new Point(16, 302);
             gbSub.Size = new Size(472, 120);
 
             chkSubEnabled = new CheckBox();
@@ -137,30 +184,30 @@ namespace AgentToast
             // --- buttons ---
             Button btnOk = new Button();
             btnOk.Text = "确定";
-            btnOk.Location = new Point(16, 396);
+            btnOk.Location = new Point(16, 438);
             btnOk.Size = new Size(110, 32);
             btnOk.Click += (s, e) => { SaveUiToOptions(currentAgent); ConfigStore.Save(cfg); SetStatus("设置已保存（未写入 agent 配置）"); };
 
             Button btnApply = new Button();
             btnApply.Text = "应用";
-            btnApply.Location = new Point(138, 396);
+            btnApply.Location = new Point(138, 438);
             btnApply.Size = new Size(110, 32);
             btnApply.Click += ApplyClicked;
 
             Button btnTest = new Button();
             btnTest.Text = "测试";
-            btnTest.Location = new Point(260, 396);
+            btnTest.Location = new Point(260, 438);
             btnTest.Size = new Size(110, 32);
             btnTest.Click += TestClicked;
 
             Button btnCancel = new Button();
             btnCancel.Text = "取消提示";
-            btnCancel.Location = new Point(382, 396);
+            btnCancel.Location = new Point(382, 438);
             btnCancel.Size = new Size(106, 32);
             btnCancel.Click += CancelClicked;
 
             lblStatus = new Label();
-            lblStatus.Location = new Point(16, 448);
+            lblStatus.Location = new Point(16, 490);
             lblStatus.Size = new Size(472, 60);
             lblStatus.ForeColor = Color.FromArgb(90, 90, 90);
             lblStatus.Text = "提示：应用 = 保存偏好并自动写入该 agent 的配置文件";
@@ -307,6 +354,44 @@ namespace AgentToast
                 "agent_toast", MessageBoxButtons.OK, MessageBoxIcon.Information);
             reallyExit = true;
             this.Close();
+        }
+
+        // --- custom title bar helpers ---
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ReleaseCapture();
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr h, int msg, IntPtr w, IntPtr l);
+
+        private void TitleBarMouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                ReleaseCapture();
+                SendMessage(this.Handle, 0xA1, (IntPtr)0x2, IntPtr.Zero); // WM_NCLBUTTONDOWN, HTCAPTION
+            }
+        }
+
+        private Button MakeTitleButton(string text, int x, Panel bar)
+        {
+            Button b = new Button();
+            b.Text = text;
+            b.Location = new Point(x, 4);
+            b.Size = new Size(36, 36);
+            b.FlatStyle = FlatStyle.Flat;
+            b.FlatAppearance.BorderSize = 0;
+            b.BackColor = Color.Transparent;
+            b.ForeColor = Color.FromArgb(60, 60, 64);
+            b.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            b.MouseEnter += (s, e) => { if (b.BackColor != Color.FromArgb(232, 17, 35)) b.BackColor = Color.FromArgb(229, 229, 234); };
+            b.MouseLeave += (s, e) => { if (b.ForeColor != Color.White) b.BackColor = Color.Transparent; };
+            bar.Controls.Add(b);
+            return b;
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Alt | Keys.F4)) { this.Close(); return true; }
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         // --- tray behaviors ---
