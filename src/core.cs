@@ -40,6 +40,28 @@ namespace AgentToast
         }
     }
 
+    // ---------------- encoding-safe file IO ----------------
+    // Files we own are written as UTF-8 with BOM. On read, prefer UTF-8 but
+    // fall back to the system codepage for legacy files written before this fix.
+    public static class TextFile
+    {
+        static readonly System.Text.UTF8Encoding Utf8Strict = new System.Text.UTF8Encoding(false, true);
+        static readonly System.Text.Encoding Utf8Bom = new System.Text.UTF8Encoding(true);
+
+        public static string Decode(byte[] bytes)
+        {
+            string s;
+            try { s = Utf8Strict.GetString(bytes); }
+            catch { s = System.Text.Encoding.Default.GetString(bytes); }
+            if (s.Length > 0 && s[0] == '\uFEFF') s = s.Substring(1); // strip BOM
+            return s;
+        }
+
+        public static string Read(string path) { return Decode(File.ReadAllBytes(path)); }
+
+        public static void Write(string path, string text) { File.WriteAllText(path, text, Utf8Bom); }
+    }
+
     // ---------------- task name from transcript ----------------
     public static class TaskName
     {
@@ -52,12 +74,17 @@ namespace AgentToast
                 string last = null;
                 var ser = new JavaScriptSerializer();
                 // The agent may still hold the transcript file open: read with share flags.
+                string raw;
                 using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                using (var sr = new StreamReader(fs))
+                using (var ms = new MemoryStream())
                 {
-                    string line;
-                    while ((line = sr.ReadLine()) != null)
-                    {
+                    fs.CopyTo(ms);
+                    raw = TextFile.Decode(ms.ToArray());
+                }
+                // Decode as UTF-8 when valid, else fall back to the system codepage.
+                string[] lines = raw.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None);
+                foreach (string line in lines)
+                {
                     if (line.IndexOf("response_item") < 0) continue;
                     if (line.IndexOf("\"user\"") < 0) continue;
                     try
@@ -84,7 +111,6 @@ namespace AgentToast
                         last = text;
                     }
                     catch { }
-                    }
                 }
                 if (string.IsNullOrEmpty(last)) return null;
                 last = last.Replace("\r", " ").Replace("\n", " ").Trim();
@@ -116,7 +142,7 @@ namespace AgentToast
         }
     }
 
-    // Custom user-imported sounds, stored as .wav files in "sounds/" next to the exe.
+    // Custom user-imported sounds, stored as .wav/.mp3 files in "sounds/" next to the exe.
     public static class CustomSounds
     {
         public static string Dir()
@@ -131,8 +157,10 @@ namespace AgentToast
             var list = new List<SoundDef>();
             try
             {
-                foreach (var f in Directory.GetFiles(Dir(), "*.wav"))
+                foreach (var f in Directory.GetFiles(Dir(), "*.*"))
                 {
+                    string ext = Path.GetExtension(f).ToLowerInvariant();
+                    if (ext != ".wav" && ext != ".mp3") continue;
                     list.Add(new SoundDef { Id = "custom:" + Path.GetFileName(f), Name = Path.GetFileName(f) + " (自定义)" });
                 }
             }
@@ -141,8 +169,41 @@ namespace AgentToast
         }
     }
 
-    public static class SoundEngine
+    
+public static class SoundEngine
     {
+        [System.Runtime.InteropServices.DllImport("winmm.dll")]
+        static extern int mciSendString(string command, System.Text.StringBuilder returnValue, int returnLength, IntPtr winHandle);
+
+        // Play an mp3 through MCI (Windows decodes mp3 via DirectShow; works even when Media Foundation sources are unavailable).
+        // A background thread closes the MCI device once playback stops so the long-lived GUI process does not leak devices.
+        static void PlayMp3(string path)
+        {
+            string alias = "at" + System.Diagnostics.Process.GetCurrentProcess().Id +
+                           Guid.NewGuid().ToString("N").Substring(0, 8);
+            string open = "open \"" + path + "\" type mpegvideo alias " + alias;
+            if (mciSendString(open, null, 0, IntPtr.Zero) != 0) { Dbg.Log("mci open failed: " + path); return; }
+            Dbg.Log("mci playing: " + path);
+            if (mciSendString("play " + alias, null, 0, IntPtr.Zero) != 0) return;
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    var sb = new System.Text.StringBuilder(64);
+                    for (int i = 0; i < 600; i++) // up to 60s
+                    {
+                        System.Threading.Thread.Sleep(100);
+                        sb.Length = 0;
+                        if (mciSendString("status " + alias + " mode", sb, 64, IntPtr.Zero) != 0) return; // device gone
+                        if (sb.ToString().IndexOf("stopped", StringComparison.OrdinalIgnoreCase) >= 0) break;
+                    }
+                    mciSendString("close " + alias, null, 0, IntPtr.Zero);
+                }
+                catch { }
+            });
+        }
+
+
         public static void Play(string id)
         {
             if (string.IsNullOrEmpty(id) || id == "none") return;
@@ -153,8 +214,15 @@ namespace AgentToast
                     string path = Path.Combine(CustomSounds.Dir(), id.Substring(7));
                     if (File.Exists(path))
                     {
-                        var player = new SoundPlayer(path);
-                        player.Play();
+                        if (Path.GetExtension(path).Equals(".mp3", StringComparison.OrdinalIgnoreCase))
+                        {
+                            PlayMp3(path);
+                        }
+                        else
+                        {
+                            var player = new SoundPlayer(path);
+                            player.Play();
+                        }
                     }
                     return;
                 }
@@ -211,7 +279,7 @@ namespace AgentToast
                 string p = Path_();
                 if (!File.Exists(p)) return cfg;
                 var ser = new JavaScriptSerializer();
-                var root = ser.Deserialize<Dictionary<string, object>>(File.ReadAllText(p));
+                var root = ser.Deserialize<Dictionary<string, object>>(TextFile.Read(p));
                 if (root == null || !root.ContainsKey("agents")) return cfg;
                 var agents = root["agents"] as Dictionary<string, object>;
                 if (agents == null) return cfg;
@@ -256,7 +324,7 @@ namespace AgentToast
                 d["durationMs"] = kv.Value.DurationMs;
                 agents[kv.Key] = d;
             }
-            File.WriteAllText(Path_(), ser.Serialize(root));
+            TextFile.Write(Path_(), ser.Serialize(root));
         }
 
         private static bool GetBool(Dictionary<string, object> d, string k, bool def)

@@ -1,1 +1,0 @@
-{"version":1,"agents":{"codex":{"enabled":true,"style":"steam","sound":"asterisk","text":"完工啦","subEnabled":false,"subStyle":"minimal","subSound":"beep","durationMs":6000},"claude":{"enabled":false,"style":"steam","sound":"asterisk","text":"任务已完成","subEnabled":false,"subStyle":"steam","subSound":"none","durationMs":2000}}}

@@ -223,7 +223,7 @@ namespace AgentToast
             {
                 string path = Path.Combine(Home(), ".codex", "config.toml");
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
-                string text = File.Exists(path) ? File.ReadAllText(path) : "";
+                string text = File.Exists(path) ? TextFile.Read(path) : "";
                 // drop our managed region
                 text = Regex.Replace(text, @"(?s)# >>> (?:codex-toast|agent_toast) >>>.*?# <<< (?:codex-toast|agent_toast) <<<\r?\n?", "");
                 // one-time migration: drop legacy unmarked hook blocks that point at us
@@ -241,7 +241,7 @@ namespace AgentToast
                     region += "\n# <<< agent_toast <<<\n";
                     text = text.TrimEnd() + "\n\n" + region;
                 }
-                File.WriteAllText(path, text);
+                TextFile.Write(path, text);
                 Console.WriteLine("codex config updated: " + path);
                 return true;
             }
@@ -260,7 +260,7 @@ namespace AgentToast
                 Dictionary<string, object> root;
                 if (File.Exists(path))
                 {
-                    try { root = ser.Deserialize<Dictionary<string, object>>(File.ReadAllText(path)) ?? new Dictionary<string, object>(); }
+                    try { root = ser.Deserialize<Dictionary<string, object>>(TextFile.Read(path)) ?? new Dictionary<string, object>(); }
                     catch { root = new Dictionary<string, object>(); }
                 }
                 else root = new Dictionary<string, object>();
@@ -274,7 +274,7 @@ namespace AgentToast
                 SetClaudeHook(hooks, "SubagentStop", o.Enabled && o.SubEnabled, o);
 
                 root["hooks"] = hooks;
-                File.WriteAllText(path, ser.Serialize(root));
+                TextFile.Write(path, ser.Serialize(root));
                 Console.WriteLine("claude settings updated: " + path);
                 return true;
             }

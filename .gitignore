@@ -1,1 +1,2 @@
-# build output is committed on purpose (release/), so nothing to ignore for now
+﻿# build output: use publish.ps1 + GitHub Releases instead
+release/
