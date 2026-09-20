@@ -250,7 +250,7 @@ namespace AgentToast
         private void ImportClicked(object sender, EventArgs e)
         {
             var dlg = new OpenFileDialog();
-            dlg.Filter = "WAV \u97f3\u9891 (*.wav)|*.wav";
+            dlg.Filter = "WAV/MP3 \u97f3\u9891 (*.wav;*.mp3)|*.wav;*.mp3";
             dlg.Title = "\u9009\u62e9\u63d0\u793a\u97f3\u6587\u4ef6";
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
             try
