@@ -1,5 +1,6 @@
-﻿// agent_toast settings GUI.
+// agent_toast settings GUI.
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Drawing;
@@ -9,8 +10,8 @@ namespace AgentToast
 {
     public class SettingsForm : Form
     {
-        private static readonly string[] AgentIds = { "codex", "claude", "opencode" };
-        private static readonly string[] AgentNames = { "Codex", "Claude Code", "OpenCode (预留)" };
+        private static readonly string[] AgentIds = { "codex", "claude", "dsh", "opencode" };
+        private static readonly string[] AgentNames = { "Codex", "Claude Code", "DSH", "OpenCode" };
 
         private MacTabs tabs;
         private string currentAgent = "codex";
@@ -20,6 +21,7 @@ namespace AgentToast
         private TextBox txtMainText;
         private NumericUpDown numDuration;
         private Label lblStatus;
+        private Button btnInstall, btnEnableAll;
 
         private AppConfig cfg;
         private NotifyIcon trayIcon;
@@ -103,9 +105,7 @@ namespace AgentToast
             tabs = new MacTabs();
             tabs.Location = new Point(16, 56);
             tabs.Size = new Size(472, 34);
-            tabs.AddTab("codex", "Codex");
-            tabs.AddTab("claude", "Claude Code");
-            tabs.AddTab("opencode", "OpenCode");
+            for (int i = 0; i < AgentIds.Length; i++) tabs.AddTab(AgentIds[i], AgentNames[i]);
             tabs.SelectTab(currentAgent);
             tabs.SelectedIndexChanged += (s, e) =>
             {
@@ -225,6 +225,94 @@ namespace AgentToast
             this.Controls.Add(lblStatus);
 
             LoadUiFromOptions(currentAgent);
+
+            // --- install / enable-all row (below the status label) ---
+            btnInstall = new Button();
+            btnInstall.Text = "安装到本机";
+            btnInstall.Location = new Point(16, 556);
+            btnInstall.Size = new Size(110, 26);
+            btnInstall.Click += InstallClicked;
+            this.Controls.Add(btnInstall);
+
+            btnEnableAll = new Button();
+            btnEnableAll.Text = "一键开启";
+            btnEnableAll.Location = new Point(138, 556);
+            btnEnableAll.Size = new Size(110, 26);
+            btnEnableAll.Click += EnableAllClicked;
+            this.Controls.Add(btnEnableAll);
+
+            // --- first-run agent detection + stale-config self repair ---
+            var detected = new List<string>();
+            foreach (string id in AgentIds) if (AgentWriter.AgentHomeExists(id)) detected.Add(id);
+            if (detected.Count > 0 && !detected.Contains(currentAgent))
+            {
+                currentAgent = detected[0];
+                tabs.SelectTab(currentAgent);
+                LoadUiFromOptions(currentAgent);
+            }
+            btnInstall.Visible = !Installer.IsInstalledLocation();
+            btnEnableAll.Visible = detected.Count > 0;
+
+            var stale = AgentWriter.FindStaleAgents(cfg);
+            if (stale.Count > 0)
+            {
+                string msg = "检测到 " + JoinNames(stale) + " 的配置仍指向旧位置的 agent_toast，提醒会失效。\n\n是否立即修复？";
+                if (MessageBox.Show(this, msg, "agent_toast", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    foreach (string a in stale) AgentWriter.Apply(a);
+                }
+            }
+
+            string hint = Installer.IsInstalledLocation()
+                ? "已安装到：" + Installer.InstallDir()
+                : "尚未安装到固定位置：移动本程序会导致提醒失效，建议点击「安装到本机」。";
+            if (detected.Count > 0) hint = "已检测到：" + JoinNames(detected) + "。\n" + hint;
+            SetStatus(hint);
+        }
+
+        private static string JoinNames(List<string> ids)
+        {
+            var names = new List<string>();
+            foreach (string id in ids) names.Add(AgentWriter.DisplayName(id));
+            return string.Join("、", names.ToArray());
+        }
+
+        private void InstallClicked(object sender, EventArgs e)
+        {
+            SaveUiToOptions(currentAgent);
+            ConfigStore.Save(cfg);
+            int rc = Installer.Install();
+            if (rc != 0) { SetStatus("安装失败。"); return; }
+            if (MessageBox.Show(this,
+                "已安装到：" + Installer.InstallDir() + "\n\n各 agent 的提醒配置已指向新位置（DSH 需重启 DeepSeek Harness 后生效）。\n以后请从开始菜单的 agent_toast 打开设置。\n\n现在切换到新位置的设置界面吗？",
+                "agent_toast", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                try { Process.Start(Installer.InstalledExePath(), "--gui"); } catch { }
+                ExitApp();
+                return;
+            }
+            btnInstall.Visible = false;
+            SetStatus("已安装到：" + Installer.InstallDir());
+        }
+
+        private void EnableAllClicked(object sender, EventArgs e)
+        {
+            SaveUiToOptions(currentAgent);
+            var detected = new List<string>();
+            foreach (string id in AgentIds)
+            {
+                if (!AgentWriter.AgentHomeExists(id)) continue;
+                cfg.For(id).Enabled = true;
+                detected.Add(id);
+            }
+            ConfigStore.Save(cfg);
+            var applied = new List<string>();
+            foreach (string id in detected) if (AgentWriter.Apply(id)) applied.Add(id);
+            LoadUiFromOptions(currentAgent);
+            if (applied.Count == 0) { SetStatus("没有检测到可开启的 agent。"); return; }
+            string msg = "已开启并应用：" + JoinNames(applied) + "。";
+            if (applied.Contains("dsh")) msg += "\nDSH 需完全退出并重启 DeepSeek Harness 后生效。";
+            SetStatus(msg);
         }
 
         private ComboBox MakeCombo(System.Collections.IList items, Point loc)
@@ -324,14 +412,14 @@ namespace AgentToast
         {
             SaveUiToOptions(currentAgent);
             ConfigStore.Save(cfg);
-            if (currentAgent == "opencode")
-            {
-                SetStatus("OpenCode 支持即将推出：偏好已保存，未写入配置。");
-                return;
-            }
             bool ok = AgentWriter.Apply(currentAgent);
-            SetStatus(ok ? "已应用：" + currentAgent + " 的配置文件已更新，新会话生效。"
-                         : "应用失败，请查看 " + ConfigStore.Path_() + " 附近日志。");
+            if (ok && currentAgent == "dsh")
+                SetStatus("已应用：DSH 配置已更新（~/.dsh），完全退出并重启 DeepSeek Harness 后生效。");
+            else if (ok && currentAgent == "opencode")
+                SetStatus("已应用：OpenCode 插件已写入（~/.config/opencode/plugins），重启 OpenCode 后生效。");
+            else
+                SetStatus(ok ? "已应用：" + currentAgent + " 的配置文件已更新，新会话生效。"
+                             : "应用失败：未检测到该 agent（请先安装），或配置写入失败。");
         }
 
         private void TestClicked(object sender, EventArgs e)
@@ -339,7 +427,7 @@ namespace AgentToast
             string exe = AgentWriter.ExePath();
             string style = (cmbStyle.SelectedItem as StyleDef).Id;
             string sound = (cmbSound.SelectedItem as SoundDef).Id;
-            string title = currentAgent == "codex" ? "Codex \u6d4b\u8bd5" : "agent_toast \u6d4b\u8bd5";
+            string title = AgentWriter.DisplayName(currentAgent) + " 测试";
             try
             {
                 Process.Start(exe, "\"" + title + "\" \"\u6d4b\u8bd5\u5f39\u7a97\"" + " --duration " + ((int)numDuration.Value * 1000) + " --style " + style + " --sound " + sound);
@@ -353,7 +441,7 @@ namespace AgentToast
             o.Enabled = false;
             o.SubEnabled = false;
             ConfigStore.Save(cfg);
-            if (currentAgent != "opencode") AgentWriter.Apply(currentAgent);
+            AgentWriter.Apply(currentAgent);
             MessageBox.Show(this, currentAgent + " \u7684\u63d0\u793a\u5df2\u5173\u95ed\uff0c\u76f8\u5173\u914d\u7f6e\u5df2\u79fb\u9664\u3002",
                 "agent_toast", MessageBoxButtons.OK, MessageBoxIcon.Information);
             reallyExit = true;

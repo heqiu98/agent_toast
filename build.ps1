@@ -1,4 +1,4 @@
-﻿# Build agent_toast.exe from src/*.cs with csc.exe, embedding assets/app.ico as the exe icon.
+# Build agent_toast.exe from src/*.cs with csc.exe, embedding assets/app.ico as the exe icon.
 $ErrorActionPreference = "Stop"
 $srcDir = Join-Path $PSScriptRoot "src"
 $outDir = Join-Path $PSScriptRoot "release"
@@ -25,6 +25,7 @@ $args = @(
     "/r:System.Drawing.dll",
     "/r:System.Windows.Forms.dll",
     "/r:System.Web.Extensions.dll",
+    (Join-Path $srcDir "AssemblyInfo.cs"),
     (Join-Path $srcDir "core.cs"),
     (Join-Path $srcDir "app.cs"),
     (Join-Path $srcDir "gui.cs"),

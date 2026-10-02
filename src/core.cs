@@ -1,4 +1,4 @@
-﻿// agent_toast core: toast window, style/sound engines, per-agent settings storage.
+// agent_toast core: toast window, style/sound engines, per-agent settings storage.
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -60,6 +60,9 @@ namespace AgentToast
         public static string Read(string path) { return Decode(File.ReadAllBytes(path)); }
 
         public static void Write(string path, string text) { File.WriteAllText(path, text, Utf8Bom); }
+
+        // For files consumed by strict JSON parsers (bare JSON.parse rejects a BOM).
+        public static void WritePlain(string path, string text) { File.WriteAllText(path, text, new System.Text.UTF8Encoding(false)); }
     }
 
     // ---------------- task name from transcript ----------------
@@ -176,25 +179,30 @@ public static class SoundEngine
         static extern int mciSendString(string command, System.Text.StringBuilder returnValue, int returnLength, IntPtr winHandle);
 
         // Play an mp3 through MCI (Windows decodes mp3 via DirectShow; works even when Media Foundation sources are unavailable).
-        // A background thread closes the MCI device once playback stops so the long-lived GUI process does not leak devices.
-        static void PlayMp3(string path)
+        // The returned task completes when playback ends and the MCI device is closed, so short-lived
+        // notify processes can wait for the sound instead of cutting it off at process exit.
+        static System.Threading.Tasks.Task PlayMp3(string path)
         {
             string alias = "at" + System.Diagnostics.Process.GetCurrentProcess().Id +
                            Guid.NewGuid().ToString("N").Substring(0, 8);
             string open = "open \"" + path + "\" type mpegvideo alias " + alias;
-            if (mciSendString(open, null, 0, IntPtr.Zero) != 0) { Dbg.Log("mci open failed: " + path); return; }
+            if (mciSendString(open, null, 0, IntPtr.Zero) != 0) { Dbg.Log("mci open failed: " + path); return Done(); }
             Dbg.Log("mci playing: " + path);
-            if (mciSendString("play " + alias, null, 0, IntPtr.Zero) != 0) return;
-            System.Threading.Tasks.Task.Run(() =>
+            if (mciSendString("play " + alias, null, 0, IntPtr.Zero) != 0)
+            {
+                mciSendString("close " + alias, null, 0, IntPtr.Zero);
+                return Done();
+            }
+            return System.Threading.Tasks.Task.Run(() =>
             {
                 try
                 {
                     var sb = new System.Text.StringBuilder(64);
-                    for (int i = 0; i < 600; i++) // up to 60s
+                    for (int i = 0; i < 1800; i++) // up to 3 minutes
                     {
                         System.Threading.Thread.Sleep(100);
                         sb.Length = 0;
-                        if (mciSendString("status " + alias + " mode", sb, 64, IntPtr.Zero) != 0) return; // device gone
+                        if (mciSendString("status " + alias + " mode", sb, 64, IntPtr.Zero) != 0) break; // device gone
                         if (sb.ToString().IndexOf("stopped", StringComparison.OrdinalIgnoreCase) >= 0) break;
                     }
                     mciSendString("close " + alias, null, 0, IntPtr.Zero);
@@ -203,10 +211,15 @@ public static class SoundEngine
             });
         }
 
-
-        public static void Play(string id)
+        static System.Threading.Tasks.Task Done()
         {
-            if (string.IsNullOrEmpty(id) || id == "none") return;
+            return System.Threading.Tasks.Task.Run(delegate { });
+        }
+
+        // Returns a task that completes when the sound has finished playing.
+        public static System.Threading.Tasks.Task Play(string id)
+        {
+            if (string.IsNullOrEmpty(id) || id == "none") return Done();
             try
             {
                 if (id.StartsWith("custom:"))
@@ -216,24 +229,22 @@ public static class SoundEngine
                     {
                         if (Path.GetExtension(path).Equals(".mp3", StringComparison.OrdinalIgnoreCase))
                         {
-                            PlayMp3(path);
+                            return PlayMp3(path);
                         }
-                        else
-                        {
-                            var player = new SoundPlayer(path);
-                            player.Play();
-                        }
+                        var player = new SoundPlayer(path);
+                        return System.Threading.Tasks.Task.Run(() => { try { player.PlaySync(); } catch { } });
                     }
-                    return;
+                    return Done();
                 }
                 if (id == "asterisk") SystemSounds.Asterisk.Play();
                 else if (id == "exclamation") SystemSounds.Exclamation.Play();
-                else if (id == "beep") System.Threading.Tasks.Task.Run(() =>
+                else if (id == "beep") return System.Threading.Tasks.Task.Run(() =>
                 {
                     try { Console.Beep(1200, 180); } catch { }
                 });
             }
             catch { }
+            return Done();
         }
     }
 
